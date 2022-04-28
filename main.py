@@ -1,5 +1,9 @@
 import asyncio
 import random
+import signal
+import Charts
+
+n = 5
 
 
 class Station_Metro:
@@ -11,6 +15,13 @@ class Station_Metro:
         self.left = left
         self.people_r = 0
         self.people_l = 0
+        self.time = 0
+
+    async def stat_info(self):
+        while True:
+            self.time += 1
+            Charts.passengers.append((self.people_r + self.people_l, self.time))
+            await asyncio.sleep(1)
 
     async def add_people(self):
         while True:
@@ -25,7 +36,6 @@ class Station_Metro:
                 self.people_l += (1 - rand_people)
 
     def del_people_r(self, has_people, num):
-        # print(f"На станции {self.name} стоит {self.people_r} которые хотят направо и {self.people_l} налево")
         free = (self.MAX_PEOPLE - has_people)  # Получение свободных мест в поезде
         platform_free = self.people_r - free  # Сколько людей останется на платформе, если заполнить все места
         if platform_free <= 0:
@@ -71,6 +81,13 @@ class Train:
         self.number = number
         self.position = position
         self.standing = True
+        self.time = 0
+
+    async def stat_info(self):
+        while True:
+            self.time += 1
+            Charts.passengers_inside.append((self.people, self.time))
+            await asyncio.sleep(1)
 
     def del_people(self):
         del_pep = random.randint(0, self.people)
@@ -110,13 +127,18 @@ class Train:
             await asyncio.sleep(0.15)
 
 
+def signal_handler(signum, frame):
+    Charts.Passengers_train_chart()
+    Charts.Passengers_chart()
+
+
 async def Main():
     trains = []
-    n = 5
     for i in range(n):
         a = Train(i + 1, 0, 1)
         trains.append(a)
         loop.create_task(a.directions())
+        loop.create_task(a.stat_info())
         if i == 0:
             loop.create_task(start())
         await asyncio.sleep(22.8 / n)
@@ -129,10 +151,10 @@ async def Main():
         for i in trains:
             try:
                 print(
-                    f"{i.number}: {stations[i.position].name} -> {stations[i.position + 1].name if i.right else stations[i.position - 1].name}")
-            except:
+                    f"{i.number}: {stations[i.position].name} -> {stations[i.position + 1].name if i.right else stations[i.position - 1].name}      {i.people}")
+            except():
                 print(
-                    f"{i.number}: {stations[i.position].name} -> {stations[i.position - 1].name if i.right else stations[i.position + 1].name}")
+                    f"{i.number}: {stations[i.position].name} -> {stations[i.position - 1].name if i.right else stations[i.position + 1].name}      {i.people}")
         await asyncio.sleep(10)
         print("\n")
 
@@ -141,6 +163,10 @@ async def start():
     await asyncio.sleep(10.8)
     for i in range(0, len(stations)):
         loop.create_task(stations[i].add_people())
+    await asyncio.sleep(1)
+    for i in range(0, len(stations)):
+        loop.create_task(stations[i].stat_info())
+
 
 
 stations = [
@@ -151,6 +177,7 @@ stations = [
     Station_Metro("Lib_Push", 4.2, 0),
 ]
 
+signal.signal(signal.SIGINT, signal_handler)
 loop = asyncio.get_event_loop()
 loop.create_task(Main())
 loop.run_forever()
