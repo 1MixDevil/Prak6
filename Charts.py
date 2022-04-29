@@ -2,6 +2,9 @@ import matplotlib.pyplot as plt
 
 passengers = []
 passengers_inside = []
+passengers_time = []
+time_x = []
+time_y = []
 
 
 def Passengers_chart():
@@ -22,6 +25,19 @@ def Passengers_chart():
     plt.xlabel("Секунды")
     plt.ylabel("Кол-во")
     plt.plot(y, x)
+    plt.show()
+
+
+def Update():
+    time_x.append(float(sum(passengers_time) / len(passengers_time)))
+    time_y.append(len(passengers_time))
+
+
+def Time_Passengers():
+    plt.title("Среднее время в поездке")
+    plt.xlabel("Пассажиров всего")
+    plt.ylabel("Кол-во")
+    plt.plot(time_y, time_x)
     plt.show()
 
 

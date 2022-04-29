@@ -4,65 +4,102 @@ import signal
 import Charts
 
 n = 5
+speed = 200
 
 
 class Station_Metro:
     MAX_PEOPLE = 400
 
-    def __init__(self, name, left=0, right=0, ):
+    def __init__(self, name, left=0, right=0, number=0):
         self.name = name
         self.right = right
         self.left = left
-        self.people_r = 0
-        self.people_l = 0
+        self.people_r = []
+        self.people_l = []
         self.time = 0
+        self.number = number
 
     async def stat_info(self):
         while True:
             self.time += 1
-            Charts.passengers.append((self.people_r + self.people_l, self.time))
+            Charts.passengers.append((len(self.people_r) + len(self.people_l), self.time))
             await asyncio.sleep(1)
 
     async def add_people(self):
+        k = 0
         while True:
+            if k == 500:
+                k = 0
+                Charts.Update()
+            k += 1
             await asyncio.sleep(0.01)
-            rand_people = random.randint(0, 1)
-            if self.right == 0:
-                self.people_l += rand_people
-            elif self.left == 0:
-                self.people_r += rand_people
+            pers = Person(self.number)
+
+            pers.get_time()
+            if pers.right:
+                self.people_r.append(pers)
             else:
-                self.people_r += rand_people
-                self.people_l += (1 - rand_people)
+                self.people_l.append(pers)
 
     def del_people_r(self, has_people, num):
-        free = (self.MAX_PEOPLE - has_people)  # Получение свободных мест в поезде
-        platform_free = self.people_r - free  # Сколько людей останется на платформе, если заполнить все места
+        free = (self.MAX_PEOPLE - len(has_people))  # Получение свободных мест в поезде
+        platform_free = len(self.people_r) - free  # Сколько людей останется на платформе, если заполнить все места
         if platform_free <= 0:
-            people = int(self.people_r)
-            self.people_r = 0
-            # print(f"Поезд {num} забрал {people} людей (ВСЕХ)")
-            return people
+            people = list(self.people_r)
+            self.people_r = []
+            c = []
+            for i in people:
+                c.append(i.finish)
+            return c
+
         else:
-            # print(f"Поезд {num} забрал {free} людей")
-            self.people_r -= free
-            return free
+            c = []
+            for i in range(free):
+                c.append(self.people_r.pop().finish)
+            return c
 
     def del_people_l(self, has_people, num):
-        # print(f"На станции {self.name} стоит {self.people_r} которые хотят направо и {self.people_l} налево")
-        free = self.MAX_PEOPLE - has_people
-        if free < 0:
-            return 0
-        platform_free = self.people_l - free
+        free = (self.MAX_PEOPLE - len(has_people))  # Получение свободных мест в поезде
+        platform_free = len(self.people_l) - free  # Сколько людей останется на платформе, если заполнить все места
         if platform_free <= 0:
-            people = int(self.people_l)
-            self.people_l = 0
-            # print(f"Поезд {num} забрал {people} людей (ВСЕХ)")
-            return people
+            people = list(self.people_l)
+            self.people_l = []
+            c = []
+            for i in people:
+                c.append(i.finish)
+            return c
+
         else:
-            # print(f"Поезд {num} забрал {free} людей")
-            self.people_l -= free
-            return free
+            c = []
+            for i in range(free):
+                c.append(self.people_l.pop().finish)
+            return c
+
+
+class Person:
+    def __init__(self, number):
+        self.start = number
+        self.finish = random.randint(0, 3)
+        self.right = True
+
+        if self.start == self.finish:
+            self.finish = 4
+        if self.finish < self.start:
+            self.right = False
+
+    def get_time(self):
+        tim = 0
+        if self.right:
+            for i in range(self.start, self.finish+1):
+                tim += 0.15
+                tim += stations[i].right
+            Charts.passengers_time.append(tim)
+
+        else:
+            for i in range(self.finish, self.start+1):
+                tim += 0.15
+                tim += stations[i].left
+            Charts.passengers_time.append(tim)
 
 
 class Train:
@@ -76,8 +113,9 @@ class Train:
     Count_station = 4
 
     def __init__(self, number, position, right=True):
+        self.passengers = []
         self.right = right
-        self.people = 0
+        self.people = []
         self.number = number
         self.position = position
         self.standing = True
@@ -86,13 +124,14 @@ class Train:
     async def stat_info(self):
         while True:
             self.time += 1
-            Charts.passengers_inside.append((self.people, self.time))
+            Charts.passengers_inside.append((len(self.people), self.time))
             await asyncio.sleep(1)
 
     def del_people(self):
-        del_pep = random.randint(0, self.people)
-        self.people -= del_pep
-        # print(f"Из поезда {self.number} вышли {del_pep}")
+        while self.position in self.people:
+            self.people.remove(self.position)
+
+    # print(f"Из поезда {self.number} вышли {del_pep}")
 
     async def directions(self):
         while True:
@@ -128,6 +167,7 @@ class Train:
 
 
 def signal_handler(signum, frame):
+    Charts.Time_Passengers()
     Charts.Passengers_train_chart()
     Charts.Passengers_chart()
 
@@ -145,16 +185,16 @@ async def Main():
 
     while True:
         for i in stations:
-            print(f"{i.name}: {int(i.people_r) + int(i.people_l)}")
+            print(f"{i.name}: {len(i.people_r) + len(i.people_l)}")
 
         print(f"\n \n")
         for i in trains:
             try:
                 print(
-                    f"{i.number}: {stations[i.position].name} -> {stations[i.position + 1].name if i.right else stations[i.position - 1].name}      {i.people}")
+                    f"{i.number}: {stations[i.position].name} -> {stations[i.position + 1].name if i.right else stations[i.position - 1].name}      {len(i.people)}")
             except():
                 print(
-                    f"{i.number}: {stations[i.position].name} -> {stations[i.position - 1].name if i.right else stations[i.position + 1].name}      {i.people}")
+                    f"{i.number}: {stations[i.position].name} -> {stations[i.position - 1].name if i.right else stations[i.position + 1].name}      {len(i.people)}")
         await asyncio.sleep(10)
         print("\n")
 
@@ -168,13 +208,12 @@ async def start():
         loop.create_task(stations[i].stat_info())
 
 
-
 stations = [
-    Station_Metro('Rokossovskoy', 0, 3.6),
-    Station_Metro("Sobornaya", 3.6, 1.8),
-    Station_Metro("Crystal", 1.8, 1.2),
-    Station_Metro("Dyrochnaya", 1.2, 4.2),
-    Station_Metro("Lib_Push", 4.2, 0),
+    Station_Metro('Rokossovskoy', 0, 3.6, 0),
+    Station_Metro("Sobornaya", 3.6, 1.8, 1),
+    Station_Metro("Crystal", 1.8, 1.2, 2),
+    Station_Metro("Dyrochnaya", 1.2, 4.2, 3),
+    Station_Metro("Lib_Push", 4.2, 0, 4),
 ]
 
 signal.signal(signal.SIGINT, signal_handler)
