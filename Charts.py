@@ -1,10 +1,13 @@
 import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
 
 passengers = []
 passengers_inside = []
 passengers_time = []
 time_x = []
 time_y = []
+grid = GridSpec(3, 1,
+            left=0.1, right=0.99, bottom=0.1, top=0.9, height_ratios=[1, 1, 1])
 
 
 def Passengers_chart():
@@ -21,10 +24,9 @@ def Passengers_chart():
             x[i[1] - 1] += i[0]
     for i in range(len(c)):
         x[i] = x[i] // c[i]
-    plt.title("Кол-во людей на платформе")
-    plt.xlabel("Секунды")
-    plt.ylabel("Кол-во")
+    plt.subplot(grid[0])
     plt.plot(y, x)
+    plt.title("Кол-во людей на платформе")
     plt.show()
 
 
@@ -34,11 +36,9 @@ def Update():
 
 
 def Time_Passengers():
-    plt.title("Среднее время в поездке")
-    plt.xlabel("Пассажиров всего")
-    plt.ylabel("Кол-во")
+    plt.subplot(grid[2])
     plt.plot(time_y, time_x)
-    plt.show()
+    plt.title("Среднее время поездки")
 
 
 def Passengers_train_chart():
@@ -55,10 +55,9 @@ def Passengers_train_chart():
             x[i[1] - 1] += i[0]
     for i in range(len(c)):
         x[i] = x[i] // c[i]
-    plt.title("Кол-во людей в поезде")
-    plt.xlabel("Секунды")
-    plt.ylabel("Кол-во")
+    plt.subplot(grid[1])
     plt.plot(y, x)
-    plt.show()
+    plt.title("Кол-во людей в поезде")
+
 
 
