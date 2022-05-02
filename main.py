@@ -1,26 +1,32 @@
 import asyncio
+import os
 import random
 import signal
+import platform
+import sys
+
 import Charts
 
 n = 5
-speed = 200
-f = open("input.txt", "w")
-names = ["R", 'S', "C", "D", "L"]
+speed = 100
+clear = lambda: os.system('cls.clear') if "Windows" in platform.platform() else os.system('clear')
 
-#
-# class Visual:
-#     def __init__(self):
-#         self.train_count = 5
-#         self.station_count = 5
-#         self.list = [i for i in names]
-#         self.line = [[[] for j in range(self.station_count * 2)] for i in range(self.train_count)]
-#
-#
-#     def print_line(self):
-#         for j in range(self.train_count):
-#             pass
 
+class Visual:
+    def __init__(self):
+        self.train_count = n
+        self.station_count = 5
+        self.line = [[["  "] for j in range((self.station_count * 2)-1)] for i in range(self.train_count)]
+        for i in range(0, self.train_count):
+            self.line[i][0] = ["🚆"]
+
+    def print_line(self):
+        print("R , RS, S , SC, C , CZ, D , DL, L")
+        for j in self.line:
+            print(str(j).replace("[", "").replace("]", "").replace("'", ""))
+
+
+visual = Visual()
 
 
 class Station_Metro:
@@ -48,7 +54,7 @@ class Station_Metro:
                 k = 0
                 Charts.Update()
             k += 1
-            await asyncio.sleep(1/speed)
+            await asyncio.sleep(1 / speed)
             pers = Person(self.number)
 
             pers.get_time()
@@ -106,13 +112,13 @@ class Person:
     def get_time(self):
         tim = 0
         if self.right:
-            for i in range(self.start, self.finish+1):
+            for i in range(self.start, self.finish + 1):
                 tim += 15
                 tim += int(stations[i].right * speed)
             Charts.passengers_time.append(tim)
 
         else:
-            for i in range(self.finish, self.start+1):
+            for i in range(self.finish, self.start + 1):
                 tim += 15
                 tim += int(stations[i].left * speed)
             Charts.passengers_time.append(tim)
@@ -136,6 +142,7 @@ class Train:
         self.position = position
         self.standing = True
         self.time = 0
+        self.position_metro = 0
 
     async def stat_info(self):
         while True:
@@ -158,20 +165,31 @@ class Train:
 
             if self.right:
                 # print(f"Поезд {self.number} уехал со станции {stations[self.position].name}")
+                visual.line[self.number-1][self.position_metro] = ["  "]
+                self.position_metro += 1
+                visual.line[self.number-1][self.position_metro] = ["🚆"]
                 await asyncio.sleep(stations[self.position].right)
+                visual.line[self.number-1][self.position_metro] = ["  "]
+                self.position_metro += 1
                 self.position += 1
+                visual.line[self.number-1][self.position_metro] = ["🚆"]
                 # print(f"Поезд {self.number} прибыл на станцию {stations[self.position].name} \n \n")
                 self.del_people()
-                self.people += stations[self.position].del_people_r(self.people, self.number)
                 if self.position >= len(stations) - 1:
                     self.people += stations[self.position].del_people_l(self.people, self.number)
                 else:
                     self.people += stations[self.position].del_people_r(self.people, self.number)
 
             elif not self.right:
+                visual.line[self.number-1][self.position_metro] = ["  "]
+                self.position_metro -= 1
+                visual.line[self.number-1][self.position_metro] = ["🚆"]
                 # print(f"Поезд {self.number} уехал со станции {stations[self.position].name}")
                 await asyncio.sleep(stations[self.position].left)
+                visual.line[self.number-1][self.position_metro] = ["  "]
                 self.position -= 1
+                self.position_metro -= 1
+                visual.line[self.number-1][self.position_metro] = ["🚆"]
                 # print(f"Поезд {self.number} прибыл на станцию {stations[self.position].name} \n \n")
                 self.del_people()
                 if self.position <= 0:
@@ -179,13 +197,15 @@ class Train:
                 else:
                     self.people += stations[self.position].del_people_l(self.people, self.number)
 
-            await asyncio.sleep(15/speed)
+            await asyncio.sleep(15 / speed)
 
 
 def signal_handler(signum, frame):
     Charts.Time_Passengers()
     Charts.Passengers_train_chart()
     Charts.Passengers_chart()
+    sys.exit
+    os.abort()
 
 
 async def Main():
@@ -197,26 +217,44 @@ async def Main():
         loop.create_task(a.stat_info())
         if i == 0:
             loop.create_task(start())
-        await asyncio.sleep((2280/speed) / n)
+        await asyncio.sleep((2280 / speed) / n)
 
     while True:
+        clear()
         for i in stations:
             print(f"{i.name}: {len(i.people_r) + len(i.people_l)}")
 
-        print(f"\n \n")
+        print()
         for i in trains:
-            try:
-                print(
-                    f"{i.number}: {stations[i.position].name} -> {stations[i.position + 1].name if i.right else stations[i.position - 1].name}      {len(i.people)}")
-            except():
-                print(
-                    f"{i.number}: {stations[i.position].name} -> {stations[i.position - 1].name if i.right else stations[i.position + 1].name}      {len(i.people)}")
-        await asyncio.sleep(10)
+            if i.right:
+                if i.position >= len(stations)-1:
+                    print(
+                        f"{i.number}: {stations[i.position].name} -> {stations[i.position - 1].name}"
+                    )
+                else:
+                    print(
+                        f"{i.number}: {stations[i.position].name} -> {stations[i.position+1].name}"
+                    )
+            else:
+                if i.position <= 0:
+                    print(
+                        f"{i.number}: {stations[i.position].name} -> {stations[i.position + 1].name}"
+                    )
+                else:
+                    print(
+                        f"{i.number}: {stations[i.position].name} -> {stations[i.position-1].name}"
+                    )
+
+        print()
+        visual.print_line()
+        await asyncio.sleep(0.1)
         print("\n")
 
 
 async def start():
-    await asyncio.sleep(1080/speed)
+    clear()
+    visual.print_line()
+    await asyncio.sleep(1080 / speed)
     for i in range(0, len(stations)):
         loop.create_task(stations[i].add_people())
     await asyncio.sleep(1)
@@ -225,11 +263,11 @@ async def start():
 
 
 stations = [
-    Station_Metro('Rokossovskoy', 0, 360/speed, 0),
-    Station_Metro("Sobornaya", 360/speed, 180/speed, 1),
-    Station_Metro("Crystal", 180/speed, 120/speed, 2),
-    Station_Metro("Dyrochnaya", 120/speed, 420/speed, 3),
-    Station_Metro("Lib_Push", 420/speed, 0, 4),
+    Station_Metro('Rokossovskoy', 0, 360 / speed, 0),
+    Station_Metro("Sobornaya", 360 / speed, 180 / speed, 1),
+    Station_Metro("Crystal", 180 / speed, 120 / speed, 2),
+    Station_Metro("Dyrochnaya", 120 / speed, 420 / speed, 3),
+    Station_Metro("Lib_Push", 420 / speed, 0, 4),
 ]
 
 signal.signal(signal.SIGINT, signal_handler)
